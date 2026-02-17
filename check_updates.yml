@@ -16,10 +16,12 @@
       ansible.builtin.set_fact:
         pending_updates: "{{ update_check.stdout_lines | select('match','^[a-zA-Z0-9]') | list | length }}"
 
+    - name: Determinar estado del servidor
+      ansible.builtin.set_fact:
         update_status: >-
-          {% if pending_updates == 0 %}
+          {% if pending_updates | int == 0 %}
           OK
-          {% elif pending_updates <= 5 %}
+          {% elif pending_updates | int <= 5 %}
           WARNING
           {% else %}
           CRITICAL

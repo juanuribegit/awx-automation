@@ -15,6 +15,8 @@
       ansible.builtin.set_fact:
         clean_packages: "{{ update_check.stdout_lines | select('match','^[a-zA-Z0-9]') | list }}"
         ip_addr: "{{ ansible_default_ipv4.address | default('N/A') }}"
+        # Capturamos la fecha del sistema del host
+        fecha_ejecucion: "{{ ansible_date_time.date }} {{ ansible_date_time.time }}"
 
     - name: Definir métricas
       ansible.builtin.set_fact:
@@ -34,10 +36,12 @@
         col2: 20
         col3: 12
         col4: 10
-      # Usamos pause con prompt para que AWX muestre el texto sin formato JSON
       ansible.builtin.pause:
         seconds: 1
         prompt: |
+          
+          FECHA DE REVISIÓN: {{ hostvars[groups['all'][0]]['fecha_ejecucion'] }}
+          {{ "=" * 65 }}
           
           {{ "SERVIDOR".ljust(col1) }} | {{ "IP".ljust(col2) }} | {{ "UPDATES".ljust(col3) }} | {{ "ESTADO".ljust(col4) }}
           {{ "-" * (col1 + col2 + col3 + col4 + 9) }}

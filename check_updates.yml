@@ -13,6 +13,7 @@
 
     - name: Procesar informacion del host
       set_fact:
+        # Filtramos para obtener solo los nombres de paquetes
         clean_packages: "{{ update_check.stdout_lines | select('match','^[a-zA-Z0-9]') | list }}"
         ip_addr: "{{ ansible_default_ipv4.address | default('N/A') }}"
         fecha_ejecucion: "{{ ansible_date_time.date }} {{ ansible_date_time.time }}"
@@ -25,52 +26,25 @@
           {% elif (clean_packages | length | int) > 5 %}WARNING
           {% else %}OK{% endif %}
 
-- name: 2. Reporte y Envio via CURL (Office 365)
+- name: 2. Reporte Final en Pantalla
   hosts: localhost
   gather_facts: no
-  vars:
-    # === DATOS QUE DEBES RELLENAR ===
-    my_user: "gdl.foxconnit@fii-na.com" 
-    my_pass: "Cuentageneric4!"
-    destinatario: "juan.uribe@fii-na.com"
-    # ===============================
-
   tasks:
-    - name: Construir cuerpo del reporte
-      set_fact:
-        reporte_body: |
-          REPORTE DIARIO DE ACTUALIZACIONES
-          FECHA: {{ hostvars[groups['all'][0]]['fecha_ejecucion'] | default('N/A') }}
+    - name: "MOSTRAR TABLA DE ACTUALIZACIONES"
+      vars:
+        col1: 20
+        col2: 18
+        col3: 10
+        col4: 10
+      ansible.builtin.pause:
+        seconds: 1
+        prompt: |
+          
+          FECHA DE REVISIÓN: {{ hostvars[groups['all'][0]]['fecha_ejecucion'] | default('N/A') }}
           =================================================================
-          SERVIDOR             | IP              | UPDATES    | ESTADO    
+          {{ "SERVIDOR".ljust(col1) }} | {{ "IP".ljust(col2) }} | {{ "UPDATES".ljust(col3) }} | {{ "ESTADO".ljust(col4) }}
           -----------------------------------------------------------------
           {% for host in groups['all'] %}
-          {{ "%-20s | %-15s | %-10s | %-10s" | format(host, hostvars[host]['ip_addr'], hostvars[host]['p_count'], hostvars[host]['status_name']) }}
+          {{ host.ljust(col1) }} | {{ hostvars[host]['ip_addr'].ljust(col2) }} | {{ (hostvars[host]['p_count'] | default(0) | string).ljust(col3) }} | {{ hostvars[host]['status_name'] | default('UNKNOWN').ljust(col4) }}
           {% endfor %}
           -----------------------------------------------------------------
-
-    - name: Enviar correo usando CURL a Office 365
-      shell: |
-        # Definimos el servidor fijo de Microsoft
-        SMTP_SERVER="smtp.office365.com"
-        SMTP_PORT="587"
-
-        # Generamos el archivo de correo
-        printf "Subject: Reporte Actualizaciones AWX\r\nFrom: {{ my_user }}\r\nTo: {{ destinatario }}\r\n\r\n{{ reporte_body }}" > /tmp/mail_final.txt
-
-        # Ejecucion con los datos de O365
-        curl --url "smtp://$SMTP_SERVER:$SMTP_PORT" \
-             --ssl-reqd \
-             --mail-from "{{ my_user }}" \
-             --mail-rcpt "{{ destinatario }}" \
-             --user "{{ my_user }}:{{ my_pass }}" \
-             --upload-file /tmp/mail_final.txt
-      args:
-        executable: /bin/bash
-      delegate_to: localhost
-
-    - name: Limpiar archivo temporal
-      file:
-        path: /tmp/mail_final.txt
-        state: absent
-      delegate_to: localhost

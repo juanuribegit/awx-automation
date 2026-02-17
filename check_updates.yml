@@ -25,26 +25,31 @@
           {% elif (clean_packages | length | int) > 5 %}WARNING
           {% else %}OK{% endif %}
 
-- name: 2. Reporte y Envio Office 365
+- name: 2. Reporte y Envio via CURL (Office 365)
   hosts: localhost
   gather_facts: no
   vars:
-    # --- CONFIGURACION REAL ---
-    smtp_host: "smtp.office365.com"
-    smtp_port: 587
+    # --- DATOS DE CONEXIÓN OFFICE 365 ---
+    smtp_server: "smtp.office365.com"
+    smtp_port: "587"
     smtp_user: "gdl.foxconnit@fii-na.com"    # REEMPLAZAR
-    smtp_pass: "Cuentageneric4!"       # REEMPLAZAR
+    smtp_pass: "Cuentageneric4!"       # REEMPLAZAR (App Password)
     destinatario: "juan.uribe@fii-na.com" # REEMPLAZAR
     
+    # --- AJUSTES DE TABLA ---
     col1: 20
     col2: 18
     col3: 10
     col4: 10
 
   tasks:
-    - name: Construir tabla
+    - name: Construir cuerpo del mensaje (Formato RFC822)
       set_fact:
-        tabla_final: |
+        reporte_completo: |
+          Subject: Reporte Actualizaciones AWX - {{ lookup('pipe', 'date +%Y-%m-%d') }}
+          From: {{ smtp_user }}
+          To: {{ destinatario }}
+
           REPORTE DIARIO DE ACTUALIZACIONES
           FECHA: {{ hostvars[groups['all'][0]]['fecha_ejecucion'] | default('N/A') }}
           {{ "=" * 65 }}
@@ -55,16 +60,21 @@
           {% endfor %}
           {{ "-" * 65 }}
 
-    - name: Enviar correo unico
-      # Usamos el nombre corto del modulo para maxima compatibilidad
-      mail:
-        host: "{{ smtp_host }}"
-        port: "{{ smtp_port }}"
-        username: "{{ smtp_user }}"
-        password: "{{ smtp_pass }}"
-        to: "{{ destinatario }}"
-        from: "{{ smtp_user }}"
-        subject: "Reporte Actualizaciones - {{ lookup('pipe', 'date +%Y-%m-%d') }}"
-        body: "{{ tabla_final }}"
-        secure: starttls
+    - name: Enviar correo usando CURL (SMTP + STARTTLS)
+      shell: |
+        echo "{{ reporte_completo }}" > /tmp/mail.txt
+        curl --url 'smtp://{{ smtp_server }}:{{ smtp_port }}' \
+             --ssl-reqd \
+             --mail-from '{{ smtp_user }}' \
+             --mail-rcpt '{{ destinatario }}' \
+             --user '{{ smtp_user }}:{{ smtp_pass }}' \
+             --upload-file /tmp/mail.txt
+      args:
+        executable: /bin/bash
+      delegate_to: localhost
+
+    - name: Limpiar archivo temporal
+      file:
+        path: /tmp/mail.txt
+        state: absent
       delegate_to: localhost

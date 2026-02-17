@@ -41,3 +41,20 @@
           {{ host }} : {{ hostvars[host]['pending_updates'] | default('N/A') }} updates ({{ hostvars[host]['update_status'] | default('UNKNOWN') }})
           {% endfor %}
           ==============================================
+# --- AGREGA ESTA TAREA AQUÍ ---
+    - name: Listado detallado de actualizaciones
+      debug:
+        msg: "{{ dnf_result.stdout_lines }}"
+      when: dnf_result.stdout != ""
+
+    - name: Contar paquetes pendientes
+      set_fact:
+        update_count: "{{ dnf_result.stdout_lines | length }}"# --- AGREGA ESTA TAREA AQUÍ ---
+    - name: Listado detallado de actualizaciones
+      debug:
+        msg: "{{ dnf_result.stdout_lines }}"
+      when: dnf_result.stdout != ""
+
+    - name: Contar paquetes pendientes
+      set_fact:
+        update_count: "{{ dnf_result.stdout_lines | length }}"

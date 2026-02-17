@@ -1,52 +1,43 @@
 ---
-- name: Obtener actualizaciones pendientes
+- name: Auditoría de Actualizaciones Pendientes
   hosts: all
   become: yes
-  gather_facts: no
+  gather_facts: yes  # Necesario para obtener la IP (ansible_default_ipv4)
 
   tasks:
-    - name: Ejecutar dnf check-update
+    - name: Ejecutar check-update
       ansible.builtin.command: dnf check-update
       register: update_check
-      # dnf devuelve 100 si hay updates, 0 si no hay. > 100 es error real.
       failed_when: update_check.rc > 100
       changed_when: false
 
-    - name: Filtrar y limpiar lista de paquetes
+    - name: Procesar información
       ansible.builtin.set_fact:
-        # Filtramos líneas vacías o que no empiecen con caracteres de paquetes
         clean_packages: "{{ update_check.stdout_lines | select('match','^[a-zA-Z0-9]') | list }}"
+        ip_addr: "{{ ansible_default_ipv4.address | default('N/A') }}"
 
-    - name: Contar paquetes pendientes
+    - name: Definir métricas y colores
       ansible.builtin.set_fact:
-        pending_updates: "{{ clean_packages | length }}"
+        p_count: "{{ clean_packages | length | int }}"
+        # Definición de colores ANSI
+        c_reset: "\e[0m"
+        c_color: >-
+          {% if (clean_packages | length | int) > 9 %}\e[31mCRITICAL\e[0m
+          {% elif (clean_packages | length | int) > 5 %}\e[33mWARNING\e[0m
+          {% else %}\e[32mOK\e[0m{% endif %}
 
-    - name: Listado detallado (Se verá en la salida del host)
-      ansible.builtin.debug:
-        var: clean_packages
-      when: pending_updates | int > 0
-
-    - name: Determinar estado del servidor
-      ansible.builtin.set_fact:
-        update_status: >-
-          {% if pending_updates | int == 0 %}
-          OK
-          {% elif pending_updates | int <= 5 %}
-          WARNING
-          {% else %}
-          CRITICAL
-          {% endif %}
-
-- name: Mostrar resumen consolidado
+- name: Reporte Final en Tabla
   hosts: localhost
   gather_facts: no
-
   tasks:
-    - name: Mostrar resumen general
+    - name: "TABLA DE ACTUALIZACIONES PENDIENTES"
       ansible.builtin.debug:
         msg: |
-          ===== RESUMEN GENERAL DE ACTUALIZACIONES =====
+          
+          {{ "%-20s" | format("SERVIDOR") }} | {{ "%-15s" | format("IP") }} | {{ "%-10s" | format("UPDATES") }} | {{ "%-10s" | format("ESTADO") }}
+          --------------------------------------------------------------------------------
           {% for host in groups['all'] %}
-          {{ host }} : {{ hostvars[host]['pending_updates'] | default('0') }} updates ({{ hostvars[host]['update_status'] | default('UNKNOWN') }})
+          {{ "%-20s" | format(host) }} | {{ "%-15s" | format(hostvars[host]['ip_addr']) }} | {{ "%-10s" | format(hostvars[host]['p_count']) }} | {{ hostvars[host]['c_color'] }}
           {% endfor %}
-          ==============================================
+          --------------------------------------------------------------------------------
+          Nota: Los colores solo son visibles en la salida estándar (Stdout) de AWX.

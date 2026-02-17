@@ -3,14 +3,14 @@
   hosts: all
   become: yes
 
-
   tasks:
 
-  - name: Revisar paquetes disponibles
-    ansible.builtin.command: dnf check-update
-    register: update _check
-    ignore_errors: yes
+    - name: Revisar paquetes disponibles
+      ansible.builtin.command: dnf check-update
+      register: update_check
+      failed_when: update_check.rc > 100
+      changed_when: false
 
-  - name: Mostrar resultado
-    ansible.builtin.debug:
-    var: update_check.stdout_lines
+    - name: Mostrar resultado
+      ansible.builtin.debug:
+        var: update_check.stdout_lines

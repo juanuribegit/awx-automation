@@ -1,20 +1,30 @@
 ---
-- name: Obtener número de actualizaciones pendientes
+- name: Obtener actualizaciones pendientes
   hosts: all
   become: yes
   gather_facts: no
 
   tasks:
-
     - name: Ejecutar dnf check-update
       ansible.builtin.command: dnf check-update
       register: update_check
+      # dnf devuelve 100 si hay updates, 0 si no hay. > 100 es error real.
       failed_when: update_check.rc > 100
       changed_when: false
 
+    - name: Filtrar y limpiar lista de paquetes
+      ansible.builtin.set_fact:
+        # Filtramos líneas vacías o que no empiecen con caracteres de paquetes
+        clean_packages: "{{ update_check.stdout_lines | select('match','^[a-zA-Z0-9]') | list }}"
+
     - name: Contar paquetes pendientes
       ansible.builtin.set_fact:
-        pending_updates: "{{ update_check.stdout_lines | select('match','^[a-zA-Z0-9]') | list | length }}"
+        pending_updates: "{{ clean_packages | length }}"
+
+    - name: Listado detallado (Se verá en la salida del host)
+      ansible.builtin.debug:
+        var: clean_packages
+      when: pending_updates | int > 0
 
     - name: Determinar estado del servidor
       ansible.builtin.set_fact:
@@ -32,29 +42,11 @@
   gather_facts: no
 
   tasks:
-
     - name: Mostrar resumen general
       ansible.builtin.debug:
         msg: |
           ===== RESUMEN GENERAL DE ACTUALIZACIONES =====
           {% for host in groups['all'] %}
-          {{ host }} : {{ hostvars[host]['pending_updates'] | default('N/A') }} updates ({{ hostvars[host]['update_status'] | default('UNKNOWN') }})
+          {{ host }} : {{ hostvars[host]['pending_updates'] | default('0') }} updates ({{ hostvars[host]['update_status'] | default('UNKNOWN') }})
           {% endfor %}
           ==============================================
-
-    - name: Listado detallado de actualizaciones
-      debug:
-        msg: "{{ dnf_result.stdout_lines }}"
-      when: dnf_result.stdout != ""
-
-    - name: Contar paquetes pendientes
-      set_fact:
-        update_count: "{{ dnf_result.stdout_lines | length }}"# --- AGREGA ESTA TAREA AQUÍ ---
-    - name: Listado detallado de actualizaciones
-      debug:
-        msg: "{{ dnf_result.stdout_lines }}"
-      when: dnf_result.stdout != ""
-
-    - name: Contar paquetes pendientes
-      set_fact:
-        update_count: "{{ dnf_result.stdout_lines | length }}"

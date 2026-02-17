@@ -41,7 +41,7 @@
           {{ host }} : {{ hostvars[host]['pending_updates'] | default('N/A') }} updates ({{ hostvars[host]['update_status'] | default('UNKNOWN') }})
           {% endfor %}
           ==============================================
-# --- AGREGA ESTA TAREA AQUÍ ---
+
     - name: Listado detallado de actualizaciones
       debug:
         msg: "{{ dnf_result.stdout_lines }}"

@@ -16,17 +16,26 @@
       ansible.builtin.set_fact:
         pending_updates: "{{ update_check.stdout_lines | select('match','^[a-zA-Z0-9]') | list | length }}"
 
+        update_status: >-
+          {% if pending_updates == 0 %}
+          OK
+          {% elif pending_updates <= 5 %}
+          WARNING
+          {% else %}
+          CRITICAL
+          {% endif %}
+
 - name: Mostrar resumen consolidado
   hosts: localhost
   gather_facts: no
 
   tasks:
 
-    - name: Construir resumen
+    - name: Mostrar resumen general
       ansible.builtin.debug:
         msg: |
           ===== RESUMEN GENERAL DE ACTUALIZACIONES =====
           {% for host in groups['all'] %}
-          {{ host }} : {{ hostvars[host]['pending_updates'] | default('N/A') }} updates
+          {{ host }} : {{ hostvars[host]['pending_updates'] | default('N/A') }} updates ({{ hostvars[host]['update_status'] | default('UNKNOWN') }})
           {% endfor %}
           ==============================================

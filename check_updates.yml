@@ -13,7 +13,6 @@
 
     - name: Procesar información del host
       ansible.builtin.set_fact:
-        # Filtra líneas que no sean paquetes (como avisos de expiración de metadata)
         clean_packages: "{{ update_check.stdout_lines | select('match','^[a-zA-Z0-9]') | list }}"
         ip_addr: "{{ ansible_default_ipv4.address | default('N/A') }}"
         fecha_ejecucion: "{{ ansible_date_time.date }} {{ ansible_date_time.time }}"
@@ -31,13 +30,13 @@
   gather_facts: no
   vars:
     # --- CONFIGURACIÓN REAL PARA OFFICE 365 ---
-    smtp_host: "smtp.office365.com"           # Servidor de Microsoft
-    smtp_port: 587                           # Puerto estándar TLS
-    smtp_user: "gdl.foxconnit@fii-na.com"    # REEMPLAZAR: Tu correo remitente
-    smtp_pass: "Cuentageneric4!"       # REEMPLAZAR: Tu App Password
-    destinatario: "juan.uribe@fii-na.com" # REEMPLAZAR: Correo de destino
+    smtp_host: "smtp.office365.com"
+    smtp_port: 587
+    smtp_user: "gdl.foxconnit@fii-na.com"    # REEMPLAZAR
+    smtp_pass: "Cuentagenerica4!"       # REEMPLAZAR
+    destinatario: "juan.uribe@fii-na.com" # REEMPLAZAR
     
-    # --- AJUSTES DE ALINEACIÓN DE TABLA ---
+    # --- AJUSTES DE ALINEACIÓN ---
     col1: 20
     col2: 18
     col3: 10
@@ -57,11 +56,10 @@
           {{ host.ljust(col1) }} | {{ hostvars[host]['ip_addr'].ljust(col2) }} | {{ (hostvars[host]['p_count'] | default(0) | string).ljust(col3) }} | {{ hostvars[host]['status_name'] | default('UNKNOWN').ljust(col4) }}
           {% endfor %}
           {{ "-" * 65 }}
-          
-          Nota: Este es un correo automático generado por AWX.
 
     - name: Enviar correo único de Office 365
-      community.general.mail:
+      # Cambiamos community.general.mail por el módulo base 'mail'
+      ansible.builtin.mail:
         host: "{{ smtp_host }}"
         port: "{{ smtp_port }}"
         username: "{{ smtp_user }}"
@@ -73,6 +71,6 @@
         secure: starttls
       delegate_to: localhost
 
-    - name: Mostrar reporte en consola (Stdout)
+    - name: Mostrar reporte en consola
       ansible.builtin.debug:
         msg: "{{ tabla_final }}"

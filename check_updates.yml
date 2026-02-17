@@ -2,7 +2,7 @@
 - name: Auditoría de Actualizaciones Pendientes
   hosts: all
   become: yes
-  gather_facts: yes  # Necesario para obtener la IP (ansible_default_ipv4)
+  gather_facts: yes
 
   tasks:
     - name: Ejecutar check-update
@@ -13,31 +13,30 @@
 
     - name: Procesar información
       ansible.builtin.set_fact:
+        # Limpiamos la lista para ignorar la línea de 'Last metadata expiration'
         clean_packages: "{{ update_check.stdout_lines | select('match','^[a-zA-Z0-9]') | list }}"
         ip_addr: "{{ ansible_default_ipv4.address | default('N/A') }}"
 
     - name: Definir métricas y colores
       ansible.builtin.set_fact:
         p_count: "{{ clean_packages | length | int }}"
-        # Definición de colores ANSI
-        c_reset: "\e[0m"
-        c_color: >-
-          {% if (clean_packages | length | int) > 9 %}\e[31mCRITICAL\e[0m
-          {% elif (clean_packages | length | int) > 5 %}\e[33mWARNING\e[0m
-          {% else %}\e[32mOK\e[0m{% endif %}
+        # Usamos nombres de estado simples para no romper la alineación
+        status_name: >-
+          {% if (clean_packages | length | int) > 9 %}CRITICAL
+          {% elif (clean_packages | length | int) > 5 %}WARNING
+          {% else %}OK{% endif %}
 
 - name: Reporte Final en Tabla
   hosts: localhost
   gather_facts: no
   tasks:
-    - name: "TABLA DE ACTUALIZACIONES PENDIENTES"
+    - name: "MOSTRAR TABLA FINAL"
       ansible.builtin.debug:
         msg: |
           
-          {{ "%-20s" | format("SERVIDOR") }} | {{ "%-15s" | format("IP") }} | {{ "%-10s" | format("UPDATES") }} | {{ "%-10s" | format("ESTADO") }}
-          --------------------------------------------------------------------------------
+          {{ "%-20s | %-15s | %-10s | %-10s" | format("SERVIDOR", "IP", "UPDATES", "ESTADO") }}
+          {{ "-" * 65 }}
           {% for host in groups['all'] %}
-          {{ "%-20s" | format(host) }} | {{ "%-15s" | format(hostvars[host]['ip_addr']) }} | {{ "%-10s" | format(hostvars[host]['p_count']) }} | {{ hostvars[host]['c_color'] }}
+          {{ "%-20s | %-15s | %-10s | %-10s" | format(host, hostvars[host]['ip_addr'], hostvars[host]['p_count'], hostvars[host]['status_name']) }}
           {% endfor %}
-          --------------------------------------------------------------------------------
-          Nota: Los colores solo son visibles en la salida estándar (Stdout) de AWX.
+          {{ "-" * 65 }}

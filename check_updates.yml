@@ -33,9 +33,9 @@
     # --- CONFIGURACIÓN REAL PARA OFFICE 365 ---
     smtp_host: "smtp.office365.com"           # Servidor de Microsoft
     smtp_port: 587                           # Puerto estándar TLS
-    smtp_user: "tu-correo@tu-empresa.com"    # REEMPLAZAR: Tu correo remitente
-    smtp_pass: "tu-contraseña-o-token"       # REEMPLAZAR: Tu App Password
-    destinatario: "quien-recibe@dominio.com" # REEMPLAZAR: Correo de destino
+    smtp_user: "gdl.foxconnit@fii-na.com"    # REEMPLAZAR: Tu correo remitente
+    smtp_pass: "Cuentageneric4!"       # REEMPLAZAR: Tu App Password
+    destinatario: "juan.uribe@fii-na.com" # REEMPLAZAR: Correo de destino
     
     # --- AJUSTES DE ALINEACIÓN DE TABLA ---
     col1: 20

@@ -29,14 +29,14 @@
   hosts: localhost
   gather_facts: no
   vars:
-    # --- DATOS OFFICE 365 ---
-    smtp_server: "smtp.office365.com"
-    smtp_user: "gdl.foxconnit@fii-na.com"    # REEMPLAZAR
-    smtp_pass: "Cuentageneric4!"       # REEMPLAZAR
-    destinatario: "juan.uribe@fii-na.com" # REEMPLAZAR
-    
+    # === DATOS QUE DEBES RELLENAR ===
+    my_user: "gdl.foxconnit@fii-na.com" 
+    my_pass: "Cuentageneric4!"
+    destinatario: "juan.uribe@fii-na.com"
+    # ===============================
+
   tasks:
-    - name: Construir cuerpo del mensaje
+    - name: Construir cuerpo del reporte
       set_fact:
         reporte_body: |
           REPORTE DIARIO DE ACTUALIZACIONES
@@ -49,28 +49,28 @@
           {% endfor %}
           -----------------------------------------------------------------
 
-    - name: Enviar correo usando CURL
+    - name: Enviar correo usando CURL a Office 365
       shell: |
-        cat <<EOF > /tmp/mail_data.txt
-        Subject: Reporte Actualizaciones AWX
-        From: {{ smtp_user }}
-        To: {{ destinatario }}
+        # Definimos el servidor fijo de Microsoft
+        SMTP_SERVER="smtp.office365.com"
+        SMTP_PORT="587"
 
-        {{ reporte_body }}
-        EOF
+        # Generamos el archivo de correo
+        printf "Subject: Reporte Actualizaciones AWX\r\nFrom: {{ my_user }}\r\nTo: {{ destinatario }}\r\n\r\n{{ reporte_body }}" > /tmp/mail_final.txt
 
-        curl --url 'smtp://{{ smtp_server }}:587' \
+        # Ejecucion con los datos de O365
+        curl --url "smtp://$SMTP_SERVER:$SMTP_PORT" \
              --ssl-reqd \
-             --mail-from '{{ smtp_user }}' \
-             --mail-rcpt '{{ destinatario }}' \
-             --user '{{ smtp_user }}:{{ smtp_pass }}' \
-             --upload-file /tmp/mail_data.txt
+             --mail-from "{{ my_user }}" \
+             --mail-rcpt "{{ destinatario }}" \
+             --user "{{ my_user }}:{{ my_pass }}" \
+             --upload-file /tmp/mail_final.txt
       args:
         executable: /bin/bash
       delegate_to: localhost
 
-    - name: Limpiar temporal
+    - name: Limpiar archivo temporal
       file:
-        path: /tmp/mail_data.txt
+        path: /tmp/mail_final.txt
         state: absent
       delegate_to: localhost

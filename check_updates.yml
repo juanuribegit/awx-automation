@@ -1,16 +1,21 @@
 ---
-- name: Verificar actualizaciones pendientes
+- name: Obtener número de actualizaciones pendientes
   hosts: all
   become: yes
+  gather_facts: no
 
   tasks:
 
-    - name: Revisar paquetes disponibles
+    - name: Ejecutar dnf check-update
       ansible.builtin.command: dnf check-update
       register: update_check
       failed_when: update_check.rc > 100
       changed_when: false
 
-    - name: Mostrar resultado
+    - name: Contar paquetes pendientes
+      ansible.builtin.set_fact:
+        pending_updates: "{{ update_check.stdout_lines | select('match','^[a-zA-Z0-9]') | list | length }}"
+
+    - name: Mostrar resultado por servidor
       ansible.builtin.debug:
-        var: update_check.stdout_lines
+        msg: "{{ inventory_hostname }} → {{ pending_updates }} updates pendientes"

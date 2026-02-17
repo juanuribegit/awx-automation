@@ -13,14 +13,12 @@
 
     - name: Procesar información
       ansible.builtin.set_fact:
-        # Limpiamos la lista para ignorar la línea de 'Last metadata expiration'
         clean_packages: "{{ update_check.stdout_lines | select('match','^[a-zA-Z0-9]') | list }}"
         ip_addr: "{{ ansible_default_ipv4.address | default('N/A') }}"
 
-    - name: Definir métricas y colores
+    - name: Definir métricas
       ansible.builtin.set_fact:
         p_count: "{{ clean_packages | length | int }}"
-        # Usamos nombres de estado simples para no romper la alineación
         status_name: >-
           {% if (clean_packages | length | int) > 9 %}CRITICAL
           {% elif (clean_packages | length | int) > 5 %}WARNING
@@ -30,13 +28,20 @@
   hosts: localhost
   gather_facts: no
   tasks:
-    - name: "MOSTRAR TABLA FINAL"
-      ansible.builtin.debug:
-        msg: |
+    - name: "REPORTE DE ACTUALIZACIONES"
+      vars:
+        col1: 20
+        col2: 20
+        col3: 12
+        col4: 10
+      # Usamos pause con prompt para que AWX muestre el texto sin formato JSON
+      ansible.builtin.pause:
+        seconds: 1
+        prompt: |
           
-          {{ "%-20s | %-15s | %-10s | %-10s" | format("SERVIDOR", "IP", "UPDATES", "ESTADO") }}
-          {{ "-" * 65 }}
+          {{ "SERVIDOR".ljust(col1) }} | {{ "IP".ljust(col2) }} | {{ "UPDATES".ljust(col3) }} | {{ "ESTADO".ljust(col4) }}
+          {{ "-" * (col1 + col2 + col3 + col4 + 9) }}
           {% for host in groups['all'] %}
-          {{ "%-20s | %-15s | %-10s | %-10s" | format(host, hostvars[host]['ip_addr'], hostvars[host]['p_count'], hostvars[host]['status_name']) }}
+          {{ host.ljust(col1) }} | {{ hostvars[host]['ip_addr'].ljust(col2) }} | {{ (hostvars[host]['p_count'] | string).ljust(col3) }} | {{ hostvars[host]['status_name'].ljust(col4) }}
           {% endfor %}
-          {{ "-" * 65 }}
+          {{ "-" * (col1 + col2 + col3 + col4 + 9) }}

@@ -29,52 +29,48 @@
   hosts: localhost
   gather_facts: no
   vars:
-    # --- DATOS DE CONEXIÓN OFFICE 365 ---
+    # --- DATOS OFFICE 365 ---
     smtp_server: "smtp.office365.com"
-    smtp_port: "587"
-    smtp_user: "gdl.foxconnit@fii-na.com"    # REEMPLAZAR
-    smtp_pass: "Cuentageneric4!"       # REEMPLAZAR (App Password)
+    smtp_user: "gdl.foxcoonit@fii-na.com"    # REEMPLAZAR
+    smtp_pass: "Cuentageneric4!"       # REEMPLAZAR
     destinatario: "juan.uribe@fii-na.com" # REEMPLAZAR
     
-    # --- AJUSTES DE TABLA ---
-    col1: 20
-    col2: 18
-    col3: 10
-    col4: 10
-
   tasks:
-    - name: Construir cuerpo del mensaje (Formato RFC822)
+    - name: Construir cuerpo del mensaje
       set_fact:
-        reporte_completo: |
-          Subject: Reporte Actualizaciones AWX - {{ lookup('pipe', 'date +%Y-%m-%d') }}
-          From: {{ smtp_user }}
-          To: {{ destinatario }}
-
+        reporte_body: |
           REPORTE DIARIO DE ACTUALIZACIONES
           FECHA: {{ hostvars[groups['all'][0]]['fecha_ejecucion'] | default('N/A') }}
-          {{ "=" * 65 }}
-          {{ "SERVIDOR".ljust(col1) }} | {{ "IP".ljust(col2) }} | {{ "UPDATES".ljust(col3) }} | {{ "ESTADO".ljust(col4) }}
-          {{ "-" * 65 }}
+          =================================================================
+          SERVIDOR             | IP              | UPDATES    | ESTADO    
+          -----------------------------------------------------------------
           {% for host in groups['all'] %}
-          {{ host.ljust(col1) }} | {{ hostvars[host]['ip_addr'].ljust(col2) }} | {{ (hostvars[host]['p_count'] | default(0) | string).ljust(col3) }} | {{ hostvars[host]['status_name'] | default('UNKNOWN').ljust(col4) }}
+          {{ "%-20s | %-15s | %-10s | %-10s" | format(host, hostvars[host]['ip_addr'], hostvars[host]['p_count'], hostvars[host]['status_name']) }}
           {% endfor %}
-          {{ "-" * 65 }}
+          -----------------------------------------------------------------
 
-    - name: Enviar correo usando CURL (SMTP + STARTTLS)
+    - name: Enviar correo usando CURL
       shell: |
-        echo "{{ reporte_completo }}" > /tmp/mail.txt
-        curl --url 'smtp://{{ smtp_server }}:{{ smtp_port }}' \
+        cat <<EOF > /tmp/mail_data.txt
+        Subject: Reporte Actualizaciones AWX
+        From: {{ smtp_user }}
+        To: {{ destinatario }}
+
+        {{ reporte_body }}
+        EOF
+
+        curl --url 'smtp://{{ smtp_server }}:587' \
              --ssl-reqd \
              --mail-from '{{ smtp_user }}' \
              --mail-rcpt '{{ destinatario }}' \
              --user '{{ smtp_user }}:{{ smtp_pass }}' \
-             --upload-file /tmp/mail.txt
+             --upload-file /tmp/mail_data.txt
       args:
         executable: /bin/bash
       delegate_to: localhost
 
-    - name: Limpiar archivo temporal
+    - name: Limpiar temporal
       file:
-        path: /tmp/mail.txt
+        path: /tmp/mail_data.txt
         state: absent
       delegate_to: localhost

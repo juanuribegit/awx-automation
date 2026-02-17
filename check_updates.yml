@@ -6,45 +6,45 @@
 
   tasks:
     - name: Ejecutar check-update
-      command: dnf check-update
+      ansible.builtin.command: dnf check-update
       register: update_check
       failed_when: update_check.rc > 100
       changed_when: false
 
-    - name: Procesar informacion del host
-      set_fact:
-        # Filtramos para obtener solo los nombres de paquetes
+    - name: Procesar información
+      ansible.builtin.set_fact:
         clean_packages: "{{ update_check.stdout_lines | select('match','^[a-zA-Z0-9]') | list }}"
         ip_addr: "{{ ansible_default_ipv4.address | default('N/A') }}"
         fecha_ejecucion: "{{ ansible_date_time.date }} {{ ansible_date_time.time }}"
 
-    - name: Calcular metricas
-      set_fact:
+    - name: Definir métricas
+      ansible.builtin.set_fact:
         p_count: "{{ clean_packages | length | int }}"
         status_name: >-
           {% if (clean_packages | length | int) > 9 %}CRITICAL
           {% elif (clean_packages | length | int) > 5 %}WARNING
           {% else %}OK{% endif %}
 
-- name: 2. Reporte Final en Pantalla
+- name: 2. Reporte Final en Tabla
   hosts: localhost
   gather_facts: no
   tasks:
-    - name: "MOSTRAR TABLA DE ACTUALIZACIONES"
+    - name: "REPORTE DE ACTUALIZACIONES"
       vars:
-        col1: 20
-        col2: 18
-        col3: 10
-        col4: 10
+        # Definimos anchos fijos para evitar el uso de .ljust() que daba error
+        f_serv: "-20"
+        f_ip: "-18"
+        f_upd: "-10"
+        f_est: "-10"
       ansible.builtin.pause:
         seconds: 1
         prompt: |
           
           FECHA DE REVISIÓN: {{ hostvars[groups['all'][0]]['fecha_ejecucion'] | default('N/A') }}
           =================================================================
-          {{ "SERVIDOR".ljust(col1) }} | {{ "IP".ljust(col2) }} | {{ "UPDATES".ljust(col3) }} | {{ "ESTADO".ljust(col4) }}
+          {{ "%*s | %*s | %*s | %*s" | format(f_serv, "SERVIDOR", f_ip, "IP", f_upd, "UPDATES", f_est, "ESTADO") }}
           -----------------------------------------------------------------
           {% for host in groups['all'] %}
-          {{ host.ljust(col1) }} | {{ hostvars[host]['ip_addr'].ljust(col2) }} | {{ (hostvars[host]['p_count'] | default(0) | string).ljust(col3) }} | {{ hostvars[host]['status_name'] | default('UNKNOWN').ljust(col4) }}
+          {{ "%*s | %*s | %*s | %*s" | format(f_serv, host, f_ip, hostvars[host]['ip_addr'], f_upd, hostvars[host]['p_count'], f_est, hostvars[host]['status_name']) }}
           {% endfor %}
           -----------------------------------------------------------------

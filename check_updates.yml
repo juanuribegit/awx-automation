@@ -31,7 +31,7 @@
   vars:
     # --- DATOS OFFICE 365 ---
     smtp_server: "smtp.office365.com"
-    smtp_user: "gdl.foxcoonit@fii-na.com"    # REEMPLAZAR
+    smtp_user: "gdl.foxconnit@fii-na.com"    # REEMPLAZAR
     smtp_pass: "Cuentageneric4!"       # REEMPLAZAR
     destinatario: "juan.uribe@fii-na.com" # REEMPLAZAR
     
